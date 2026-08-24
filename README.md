@@ -41,7 +41,7 @@ python -m app
 | `SUPERADMIN_IDS` | id админов через запятую (управляют командой) |
 | `SUPPORT_CHAT_ID` | чат тикетов: `3800802201`, `-100...`, `@group` или ссылка `https://t.me/c/<id>/<topic>` |
 | `SUPPORT_TOPIC_ID` | явный topic id (перекрывает topic из ссылки) |
-| `PROXY_URL` | опционально: `socks5://user:pass@host:1080`, `http://...`, `https://...` |
+| `PROXY_URL` | опционально: `socks5://user:pass@host:1080`, `http://...`, `https://...`. Прокси на хосте: `socks5://host.docker.internal:10808` |
 | `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | параметры БД |
 | `SUPPORT_CONTACT_URL` | контакт в меню «связаться с разработчиком» |
 

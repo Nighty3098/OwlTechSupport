@@ -27,6 +27,10 @@ services:
       # POSTGRES_PORT from .env only controls the host port mapping.
       POSTGRES_HOST: postgres
       POSTGRES_PORT: "5432"
+    # Makes host.docker.internal resolve to the host machine, so a proxy
+    # running on the host can be used as socks5://host.docker.internal:<port>
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy
