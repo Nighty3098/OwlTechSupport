@@ -25,8 +25,8 @@ def create_dispatcher(
     dp.update.outer_middleware(UserContextMiddleware(i18n))
 
     # Public handlers first, developer-only routers last.
-    dp.include_router(start.router)
-    dp.include_router(user.router)
-    dp.include_router(team.router)
-    dp.include_router(tickets.router)
+    dp.include_router(start.get_router())
+    dp.include_router(user.get_router())
+    dp.include_router(team.get_router())
+    dp.include_router(tickets.get_router())
     return dp
