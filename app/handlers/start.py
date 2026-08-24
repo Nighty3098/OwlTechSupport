@@ -6,7 +6,8 @@ import contextlib
 from collections.abc import Callable
 
 from aiogram import Router
-from aiogram.filters import CommandStart
+from aiogram.filters import Command, CommandStart
+from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,13 +26,21 @@ def get_router() -> Router:
         message: Message,
         db_user: User,
         t: Callable[..., str],
+        state: FSMContext,
         session: AsyncSession,
         config: Config,
     ) -> None:
+        # Leaving any active form (e.g. a half-filled ticket).
+        await state.clear()
         if db_user.language is None:
             await message.answer(t("choose_language"), reply_markup=language_kb())
             return
         await send_main_menu(message, session, config, db_user.user_id, t)
+
+    @router.message(Command("cancel"))
+    async def cmd_cancel(message: Message, state: FSMContext, t: Callable[..., str]) -> None:
+        await state.clear()
+        await message.answer(t("cancelled"))
 
     @router.callback_query(LangCB.filter())
     async def choose_language(
