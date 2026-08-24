@@ -38,6 +38,35 @@ class TestProxyValidation:
             validate_proxy_url(raw)
 
 
+class TestProxyInContainer:
+    def test_loopback_rewritten_inside_container(self):
+        from app.config import adapt_proxy_url
+
+        adapted = adapt_proxy_url("socks5://127.0.0.1:10808", in_container=True)
+        assert adapted == "socks5://host.docker.internal:10808"
+
+    def test_localhost_with_credentials_rewritten(self):
+        from app.config import adapt_proxy_url
+
+        adapted = adapt_proxy_url(
+            "http://user:pass@localhost:3128", in_container=True
+        )
+        assert adapted == "http://user:pass@host.docker.internal:3128"
+
+    def test_external_host_kept_as_is(self):
+        from app.config import adapt_proxy_url
+
+        raw = "socks5://proxy.example.com:1080"
+        assert adapt_proxy_url(raw, in_container=True) == raw
+        assert adapt_proxy_url(raw, in_container=False) == raw
+
+    def test_loopback_kept_outside_container(self):
+        from app.config import adapt_proxy_url
+
+        raw = "socks5://127.0.0.1:10808"
+        assert adapt_proxy_url(raw, in_container=False) == raw
+
+
 class TestChatTarget:
     def test_private_supergroup_url_with_topic(self):
         target = parse_chat_target("https://t.me/c/3800802201/37")

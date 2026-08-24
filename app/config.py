@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
-from urllib.parse import urlparse
+from pathlib import Path
+from urllib.parse import urlparse, urlunparse
 
 from dotenv import load_dotenv
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 ALLOWED_PROXY_SCHEMES = ("socks5", "socks5h", "socks4", "http", "https")
+LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
+HOST_GATEWAY_ALIAS = "host.docker.internal"
 
 DEFAULT_CONTACT_URL = "https://owl-tech.vercel.app/"
 
@@ -72,6 +78,52 @@ def validate_proxy_url(raw: str | None) -> str | None:
         msg = f"Invalid proxy url PROXY_URL={url!r}: host is missing"
         raise ConfigError(msg)
     return url
+
+
+def running_in_container() -> bool:
+    return Path("/.dockerenv").exists()
+
+
+def adapt_proxy_url(
+    raw: str | None,
+    *,
+    in_container: bool | None = None,
+) -> str | None:
+    """Validate the proxy and adapt loopback addresses for docker.
+
+    Inside a container ``127.0.0.1`` is the container itself, so a proxy
+    running on the host would be unreachable. Loopback hosts are therefore
+    rewritten to ``host.docker.internal`` (mapped by docker compose via
+    ``extra_hosts: host-gateway``).
+    """
+    url = validate_proxy_url(raw)
+    if url is None:
+        return None
+    if in_container is None:
+        in_container = running_in_container()
+    if not in_container:
+        return url
+
+    parsed = urlparse(url)
+    if (parsed.hostname or "").lower() not in LOOPBACK_HOSTS:
+        return url
+
+    netloc = HOST_GATEWAY_ALIAS
+    if parsed.port:
+        netloc += f":{parsed.port}"
+    if parsed.username:
+        credentials = parsed.username
+        if parsed.password:
+            credentials += f":{parsed.password}"
+        netloc = f"{credentials}@{netloc}"
+
+    adapted = urlunparse(parsed._replace(netloc=netloc))
+    logger.info(
+        "PROXY_URL points to loopback (%s): rewriting to %s inside container",
+        parsed.hostname,
+        adapted,
+    )
+    return adapted
 
 
 def parse_chat_target(raw: str | None) -> ChatTarget | None:
@@ -140,7 +192,7 @@ def load_config() -> Config:
         msg = f"Invalid SUPERADMIN_IDS={raw_admins!r}: expected comma-separated integers"
         raise ConfigError(msg) from None
 
-    proxy_url = validate_proxy_url(_get_env("PROXY_URL"))
+    proxy_url = adapt_proxy_url(_get_env("PROXY_URL"))
 
     support_raw = _get_env("SUPPORT_CHAT_ID") or None
     support_chat = parse_chat_target(support_raw)
