@@ -23,7 +23,10 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
+      # Inside the compose network postgres always listens on 5432;
+      # POSTGRES_PORT from .env only controls the host port mapping.
       POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
     depends_on:
       postgres:
         condition: service_healthy
