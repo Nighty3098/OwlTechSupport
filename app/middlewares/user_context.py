@@ -33,7 +33,8 @@ class UserContextMiddleware(BaseMiddleware):
 
         db_user = await get_or_create_user(session, tg_user.id, tg_user.username)
         data["db_user"] = db_user
-        data["t"] = self._i18n.bound(db_user.language)
+        data["i18n"] = self._i18n
+        data["t"] = self._i18n.bound(db_user.language or DEFAULT_LANGUAGE)
         return await handler(event, data)
 
 
@@ -44,7 +45,7 @@ async def get_or_create_user(
 ) -> User:
     user = (await session.scalars(select(User).where(User.user_id == user_id))).first()
     if user is None:
-        user = User(user_id=user_id, username=username, language=DEFAULT_LANGUAGE)
+        user = User(user_id=user_id, username=username)
         session.add(user)
         await session.flush()
     elif user.username != username:

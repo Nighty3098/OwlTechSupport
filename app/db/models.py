@@ -6,7 +6,8 @@ from datetime import datetime
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, DateTime, Enum as SaEnum, ForeignKey, String, Text
+from sqlalchemy import JSON, BigInteger, DateTime, ForeignKey, String, Text
+from sqlalchemy import Enum as SaEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, utcnow
@@ -24,7 +25,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(BigInteger, unique=True, index=True)
     username: Mapped[str | None] = mapped_column(String(64))
-    language: Mapped[str] = mapped_column(String(8), default="ru")
+    language: Mapped[str | None] = mapped_column(String(8))
     started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     reports: Mapped[int] = mapped_column(default=0)
     features: Mapped[int] = mapped_column(default=0)
