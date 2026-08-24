@@ -44,9 +44,10 @@ def build_ticket_text(kind: str, ticket: TicketMixin, t: Callable[..., str]) -> 
     """Full ticket card with all DB fields (HTML parse mode)."""
     status_label = t(STATUS_KEYS[ticket.status])
     reporter = f"@{ticket.reporter_username}" if ticket.reporter_username else "—"
+    reporter_html = html.escape(reporter, quote=False)
     lines = [
         f"{emoji_for_kind(kind)} <b>{kind_label(kind, t)} #{ticket.id}</b>",
-        f"{t('lbl_reporter')}: {html.quote(reporter)} (<code>{ticket.reporter_user_id}</code>)",
+        f"{t('lbl_reporter')}: {reporter_html} (<code>{ticket.reporter_user_id}</code>)",
         f"{t('lbl_status')}: {status_label}",
         f"{t('lbl_reported_at')}: {format_dt(ticket.reported_at)}",
     ]
@@ -58,7 +59,7 @@ def build_ticket_text(kind: str, ticket: TicketMixin, t: Callable[..., str]) -> 
             if ticket.completed_by_username
             else str(ticket.completed_by_user_id)
         )
-        lines.append(f"{t('lbl_completed_by')}: {html.quote(completed_by)}")
+        lines.append(f"{t('lbl_completed_by')}: {html.escape(completed_by, quote=False)}")
     if ticket.completed_at is not None:
         lines.append(f"{t('lbl_completed_at')}: {format_dt(ticket.completed_at)}")
     if ticket.attachments:
@@ -66,7 +67,7 @@ def build_ticket_text(kind: str, ticket: TicketMixin, t: Callable[..., str]) -> 
 
     text = "\n".join(lines)
     if ticket.content:
-        text += f"\n\n💬\n{html.quote(ticket.content)}"
+        text += f"\n\n💬\n{html.escape(ticket.content, quote=False)}"
     return text
 
 
