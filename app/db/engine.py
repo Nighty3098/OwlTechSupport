@@ -9,12 +9,12 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from ..config import Config
+from ..config import DbConfig
 from .base import Base
 
 
-def create_engine(config: Config) -> AsyncEngine:
-    return create_async_engine(config.db.url, pool_pre_ping=True)
+def create_engine(db_config: DbConfig) -> AsyncEngine:
+    return create_async_engine(db_config.url, pool_pre_ping=True)
 
 
 def create_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
