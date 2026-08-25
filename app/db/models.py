@@ -61,7 +61,9 @@ class TicketMixin:
     reported_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime)
     started_by_username: Mapped[str | None] = mapped_column(String(64))
-    started_by_user_id: Mapped[int | None] = mapped_column(BigInteger)
+    started_by_user_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("developers.user_id")
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     completed_by_user_id: Mapped[int | None] = mapped_column(BigInteger)

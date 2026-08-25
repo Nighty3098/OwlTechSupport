@@ -41,3 +41,15 @@ async def init_models(engine: AsyncEngine) -> None:
                         f"add column if not exists started_by_user_id bigint"
                     )
                 )
+                constraint = f"fk_{table}_started_by_dev"
+                await conn.execute(
+                    text(
+                        "do $$ begin "
+                        "if not exists (select 1 from pg_constraint "
+                        f"where conname = '{constraint}') then "
+                        f"alter table {table} add constraint {constraint} "
+                        "foreign key (started_by_user_id) "
+                        "references developers(user_id); "
+                        "end if; end $$;"
+                    )
+                )

@@ -233,8 +233,19 @@ async def apply_status(
 
     if status is TicketStatus.IN_DEV and previous is not TicketStatus.IN_DEV:
         ticket.updated_at = utcnow()
-        ticket.started_by_user_id = started_by_user_id
-        ticket.started_by_username = started_by_username
+        # Mirror the developers table: the starter columns must hold the
+        # same user_id/username pair that lives in developers.
+        developer = (
+            await find_developer(session, user_id=started_by_user_id)
+            if started_by_user_id is not None
+            else None
+        )
+        ticket.started_by_user_id = (
+            developer.user_id if developer else started_by_user_id
+        )
+        ticket.started_by_username = (
+            developer.username if developer else started_by_username
+        )
 
     if status is TicketStatus.COMPLETED and previous is not TicketStatus.COMPLETED:
         ticket.completed_at = utcnow()

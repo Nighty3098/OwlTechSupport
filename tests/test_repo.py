@@ -213,6 +213,27 @@ async def test_apply_status_transitions(
     assert ticket.updated_at == taken_at  # repeated call does not restamp
     assert ticket.started_by_user_id == 200  # starter stays the same
 
+    # Starter columns mirror the developers table, not the raw arguments.
+    developer.username = "renamed_dev"
+    await session.flush()
+    ticket2 = await create_ticket(
+        session,
+        "bug",
+        reporter_user_id=user.user_id,
+        reporter_username=None,
+        content="second",
+        attachments=[],
+    )
+    await apply_status(
+        session,
+        ticket2,
+        TicketStatus.IN_DEV,
+        started_by_user_id=developer.user_id,
+        started_by_username="stale_from_users_table",
+    )
+    assert ticket2.started_by_user_id == 200
+    assert ticket2.started_by_username == "renamed_dev"
+
     # In Dev -> Completed: fills completed_* fields and dev counters.
     await apply_status(
         session,
@@ -222,7 +243,7 @@ async def test_apply_status_transitions(
         completed_by_username=developer.username,
     )
     assert ticket.completed_at is not None
-    assert ticket.completed_by_username == "dev"
+    assert ticket.completed_by_username == "renamed_dev"
     assert developer.features_closed == 1
     assert developer.bugs_closed == 0
 
