@@ -224,6 +224,8 @@ async def apply_status(
     status: TicketStatus,
     completed_by_user_id: int | None = None,
     completed_by_username: str | None = None,
+    started_by_user_id: int | None = None,
+    started_by_username: str | None = None,
 ) -> None:
     """Apply a new status and fill the corresponding audit columns."""
     previous = ticket.status
@@ -231,6 +233,8 @@ async def apply_status(
 
     if status is TicketStatus.IN_DEV and previous is not TicketStatus.IN_DEV:
         ticket.updated_at = utcnow()
+        ticket.started_by_user_id = started_by_user_id
+        ticket.started_by_username = started_by_username
 
     if status is TicketStatus.COMPLETED and previous is not TicketStatus.COMPLETED:
         ticket.completed_at = utcnow()

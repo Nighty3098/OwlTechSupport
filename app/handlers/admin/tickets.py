@@ -78,12 +78,15 @@ def get_router() -> Router:
 
         status = TicketStatus(callback_data.status)
         completing = status is TicketStatus.COMPLETED
+        taking = status is TicketStatus.IN_DEV
         await apply_status(
             session,
             ticket,
             status,
             completed_by_user_id=db_user.user_id if completing else None,
             completed_by_username=db_user.username if completing else None,
+            started_by_user_id=db_user.user_id if taking else None,
+            started_by_username=db_user.username if taking else None,
         )
 
         new_status_label = t(STATUS_KEYS[status])

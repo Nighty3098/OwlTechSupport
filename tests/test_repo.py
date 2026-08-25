@@ -189,14 +189,29 @@ async def test_apply_status_transitions(
         attachments=[],
     )
 
-    # Not started -> In Dev: stamps updated_at only.
-    await apply_status(session, ticket, TicketStatus.IN_DEV)
+    # Not started -> In Dev: stamps updated_at and the starter audit columns.
+    await apply_status(
+        session,
+        ticket,
+        TicketStatus.IN_DEV,
+        started_by_user_id=developer.user_id,
+        started_by_username=developer.username,
+    )
     assert ticket.updated_at is not None
     assert ticket.completed_at is None
+    assert ticket.started_by_user_id == 200
+    assert ticket.started_by_username == "dev"
 
     taken_at = ticket.updated_at
-    await apply_status(session, ticket, TicketStatus.IN_DEV)
+    await apply_status(
+        session,
+        ticket,
+        TicketStatus.IN_DEV,
+        started_by_user_id=999,
+        started_by_username="someone_else",
+    )
     assert ticket.updated_at == taken_at  # repeated call does not restamp
+    assert ticket.started_by_user_id == 200  # starter stays the same
 
     # In Dev -> Completed: fills completed_* fields and dev counters.
     await apply_status(

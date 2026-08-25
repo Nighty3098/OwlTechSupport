@@ -138,6 +138,27 @@ class TestTicketRendering:
         assert "@dev" in text
         assert "27.08.2026 01:02 UTC" in text
 
+    def test_started_by_shown_with_and_without_username(self):
+        t = self._t()
+        plain = build_ticket_text("bug", make_ticket(), t)
+        assert "Started by" not in plain
+
+        taken = make_ticket(
+            updated_at=datetime(2026, 8, 26, 9, 30),
+            started_by_user_id=200,
+            started_by_username="dev",
+        )
+        text = build_ticket_text("bug", taken, t)
+        assert "Started by: @dev" in text
+
+        anonymous = make_ticket(
+            updated_at=datetime(2026, 8, 26, 9, 30),
+            started_by_user_id=200,
+            started_by_username=None,
+        )
+        text = build_ticket_text("bug", anonymous, t)
+        assert "Started by: 200" in text
+
     def test_no_content_no_quote_block(self):
         text = build_ticket_text("bug", make_ticket(content=""), self._t())
         assert "💬" not in text

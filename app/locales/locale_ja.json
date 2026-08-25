@@ -42,6 +42,7 @@
   "lbl_reporter": "報告者",
   "lbl_reported_at": "作成日時",
   "lbl_taken_at": "着手日時",
+  "lbl_started_by": "着手者",
   "lbl_completed_by": "完了者",
   "lbl_completed_at": "完了日時",
   "lbl_attachments": "添付ファイル",

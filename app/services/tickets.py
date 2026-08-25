@@ -53,6 +53,13 @@ def build_ticket_text(kind: str, ticket: TicketMixin, t: Callable[..., str]) -> 
     ]
     if ticket.updated_at is not None:
         lines.append(f"{t('lbl_taken_at')}: {format_dt(ticket.updated_at)}")
+    if ticket.started_by_username or ticket.started_by_user_id:
+        starter = (
+            f"@{ticket.started_by_username}"
+            if ticket.started_by_username
+            else str(ticket.started_by_user_id)
+        )
+        lines.append(f"{t('lbl_started_by')}: {html.escape(starter, quote=False)}")
     if ticket.completed_by_username or ticket.completed_by_user_id:
         completed_by = (
             f"@{ticket.completed_by_username}"

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -22,6 +23,21 @@ def create_sessionmaker(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]
 
 
 async def init_models(engine: AsyncEngine) -> None:
-    """Create tables (lightweight alternative to migrations for this project)."""
+    """Create tables and apply lightweight migrations (no alembic here)."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        if engine.dialect.name == "postgresql":
+            # create_all does not alter existing tables.
+            for table in ("bugs", "features"):
+                await conn.execute(
+                    text(
+                        f"alter table {table} "
+                        f"add column if not exists started_by_username varchar(64)"
+                    )
+                )
+                await conn.execute(
+                    text(
+                        f"alter table {table} "
+                        f"add column if not exists started_by_user_id bigint"
+                    )
+                )

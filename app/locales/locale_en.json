@@ -42,6 +42,7 @@
   "lbl_reporter": "Reporter",
   "lbl_reported_at": "Created",
   "lbl_taken_at": "Taken at",
+  "lbl_started_by": "Started by",
   "lbl_completed_by": "Completed by",
   "lbl_completed_at": "Completed at",
   "lbl_attachments": "Attachments",
