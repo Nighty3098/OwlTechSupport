@@ -26,7 +26,7 @@
   "cannot_resolve": "Could not resolve the user id from the username. Please forward any message from that user instead.",
   "invalid_input": "I did not understand. Send an @username, a number (user id), or a forwarded message.",
   "team_empty": "The team is empty for now.",
-  "team_entry": "@{username}\n{user_id}\nAdded by @{added_by}\nAdded at: {added_at}",
+  "team_entry": "{username}\nID: {user_id}\nAdded by: {added_by}\nAdded at: {added_at}",
   "tickets_header": "🎫 Latest tickets:",
   "tickets_empty": "There are no tickets yet.",
   "change_status": "🔄 Change status",
@@ -47,5 +47,7 @@
   "lbl_completed_at": "Completed at",
   "lbl_attachments": "Attachments",
   "error_generic": "⚠️ Something went wrong. Please try again later.",
-  "access_denied": "🚫 This action is available to the support team only."
+  "access_denied": "🚫 This action is available to the support team only.",
+  "forward_hidden": "🙈 The author hid their identity in the forward, so the ID is unavailable.\nSend an @username or a numeric id instead.",
+  "no_data": "no data"
 }

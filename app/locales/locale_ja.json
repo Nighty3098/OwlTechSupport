@@ -26,7 +26,7 @@
   "cannot_resolve": "ユーザー名から ID を特定できませんでした。そのユーザーのメッセージを転送してください。",
   "invalid_input": "入力を理解できません。@ユーザー名、数字（user_id）、または転送されたメッセージを送ってください。",
   "team_empty": "チームはまだ空です。",
-  "team_entry": "@{username}\n{user_id}\nAdded by @{added_by}\nAdded at: {added_at}",
+  "team_entry": "{username}\nID: {user_id}\n追加者: {added_by}\n追加日: {added_at}",
   "tickets_header": "🎫 最新のチケット：",
   "tickets_empty": "まだチケットはありません。",
   "change_status": "🔄 ステータス変更",
@@ -47,5 +47,7 @@
   "lbl_completed_at": "完了日時",
   "lbl_attachments": "添付ファイル",
   "error_generic": "⚠️ 問題が発生しました。しばらくしてからもう一度お試しください。",
-  "access_denied": "🚫 この操作はサポートチームのみ可能です。"
+  "access_denied": "🚫 この操作はサポートチームのみ可能です。",
+  "forward_hidden": "🙈 転送元が身元を非表示にしているため、IDを取得できません。\n@ユーザー名か数値のIDを直接送ってください。",
+  "no_data": "データなし"
 }

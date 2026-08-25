@@ -5,13 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from aiogram import Bot
-from aiogram.types import Message
+from aiogram.types import Message, MessageOriginHiddenUser, MessageOriginUser
 
 
 @dataclass(slots=True)
 class MemberRef:
     username: str | None = None
     user_id: int | None = None
+    hidden: bool = False
 
 
 def extract_member_ref(message: Message) -> MemberRef | None:
@@ -20,9 +21,12 @@ def extract_member_ref(message: Message) -> MemberRef | None:
     if message.forward_from is not None:
         return MemberRef(username=message.forward_from.username, user_id=message.forward_from.id)
     origin = message.forward_origin
-    if origin is not None and getattr(origin, "sender_user", None) is not None:
+    if isinstance(origin, MessageOriginUser):
         sender = origin.sender_user
         return MemberRef(username=sender.username, user_id=sender.id)
+    if isinstance(origin, MessageOriginHiddenUser):
+        # The author forbids forwarding with their identity revealed.
+        return MemberRef(hidden=True)
 
     if not message.text:
         return None

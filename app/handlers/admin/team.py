@@ -71,6 +71,10 @@ def get_router() -> Router:
             await message.answer(t("invalid_input"))
             return
 
+        if ref.hidden:
+            await message.answer(t("forward_hidden"))
+            return
+
         with contextlib.suppress(Exception):
             ref = await resolve_member(bot, ref)
 
@@ -111,9 +115,11 @@ def get_router() -> Router:
         entries = [
             t(
                 "team_entry",
-                username=d.username or "no_username",
+                username=f"@{d.username}" if d.username else t("no_data"),
                 user_id=d.user_id,
-                added_by=d.added_by_username or "unknown",
+                added_by=f"@{d.added_by_username}"
+                if d.added_by_username
+                else t("no_data"),
                 added_at=d.added_at.strftime("%d.%m.%Y %H:%M UTC"),
             )
             for d in developers

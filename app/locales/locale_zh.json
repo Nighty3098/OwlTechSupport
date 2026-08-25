@@ -26,7 +26,7 @@
   "cannot_resolve": "无法根据用户名解析 ID。请转发该用户的任意消息。",
   "invalid_input": "无法识别输入。请发送 @用户名、数字（user_id）或转发的消息。",
   "team_empty": "团队目前为空。",
-  "team_entry": "@{username}\n{user_id}\nAdded by @{added_by}\nAdded at: {added_at}",
+  "team_entry": "{username}\nID：{user_id}\n添加者：{added_by}\n添加时间：{added_at}",
   "tickets_header": "🎫 最新工单：",
   "tickets_empty": "暂时还没有工单。",
   "change_status": "🔄 更改状态",
@@ -47,5 +47,7 @@
   "lbl_completed_at": "完成时间",
   "lbl_attachments": "附件",
   "error_generic": "⚠️ 出现错误，请稍后再试。",
-  "access_denied": "🚫 仅支持团队可以执行此操作。"
+  "access_denied": "🚫 仅支持团队可以执行此操作。",
+  "forward_hidden": "🙈 转发者隐藏了自己的信息，无法获取 ID。\n请直接发送 @用户名 或数字 ID。",
+  "no_data": "暂无数据"
 }

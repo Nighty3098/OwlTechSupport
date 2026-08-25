@@ -62,6 +62,35 @@ class TestExtractMemberRef:
         ref = extract_member_ref(msg)
         assert (ref.user_id, ref.username) == (888, "origin_user")
 
+    def test_forward_origin_hidden_marks_ref(self):
+        from aiogram.types import MessageOriginHiddenUser
+
+        msg = make_message(
+            forward_origin=MessageOriginHiddenUser(
+                type="hidden_user",
+                date=datetime.now(tz=UTC),
+                sender_user_name="Secret Person",
+            )
+        )
+        ref = extract_member_ref(msg)
+        assert ref is not None
+        assert ref.hidden
+        assert ref.user_id is None and ref.username is None
+
+    def test_forward_text_is_not_treated_as_username(self):
+        from aiogram.types import MessageOriginHiddenUser
+
+        msg = make_message(
+            text="Hi",
+            forward_origin=MessageOriginHiddenUser(
+                type="hidden_user",
+                date=datetime.now(tz=UTC),
+                sender_user_name="Secret Person",
+            ),
+        )
+        ref = extract_member_ref(msg)
+        assert ref is not None and ref.hidden
+
 
 class FakeBot:
     """get_chat stub: resolves only known usernames."""

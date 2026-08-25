@@ -26,7 +26,7 @@
   "cannot_resolve": "Die ID konnte nicht aus dem Benutzernamen ermittelt werden. Bitte leite eine beliebige Nachricht dieses Benutzers weiter.",
   "invalid_input": "Das habe ich nicht verstanden. Sende einen @Benutzernamen, eine Zahl (User-ID) oder eine weitergeleitete Nachricht.",
   "team_empty": "Das Team ist derzeit leer.",
-  "team_entry": "@{username}\n{user_id}\nAdded by @{added_by}\nAdded at: {added_at}",
+  "team_entry": "{username}\nID: {user_id}\nHinzugefügt von: {added_by}\nAm: {added_at}",
   "tickets_header": "🎫 Letzte Tickets:",
   "tickets_empty": "Es gibt noch keine Tickets.",
   "change_status": "🔄 Status ändern",
@@ -47,5 +47,7 @@
   "lbl_completed_at": "Abgeschlossen am",
   "lbl_attachments": "Anhänge",
   "error_generic": "⚠️ Etwas ist schiefgelaufen. Bitte versuche es später erneut.",
-  "access_denied": "🚫 Diese Aktion ist nur für das Support-Team verfügbar."
+  "access_denied": "🚫 Diese Aktion ist nur für das Support-Team verfügbar.",
+  "forward_hidden": "🙈 Der Autor hat seine Identität beim Weiterleiten verborgen, die ID ist nicht sichtbar.\nSende stattdessen einen @Namen oder eine numerische ID.",
+  "no_data": "keine Daten"
 }

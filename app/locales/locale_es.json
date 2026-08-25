@@ -26,7 +26,7 @@
   "cannot_resolve": "No se pudo resolver el ID a partir del nombre de usuario. Por favor, reenvía cualquier mensaje de ese usuario.",
   "invalid_input": "No he entendido. Envía un @usuario, un número (user_id) o un mensaje reenviado.",
   "team_empty": "El equipo está vacío por ahora.",
-  "team_entry": "@{username}\n{user_id}\nAdded by @{added_by}\nAdded at: {added_at}",
+  "team_entry": "{username}\nID: {user_id}\nAñadido por: {added_by}\nFecha: {added_at}",
   "tickets_header": "🎫 Últimos tickets:",
   "tickets_empty": "Todavía no hay tickets.",
   "change_status": "🔄 Cambiar estado",
@@ -47,5 +47,7 @@
   "lbl_completed_at": "Completado el",
   "lbl_attachments": "Adjuntos",
   "error_generic": "⚠️ Algo salió mal. Inténtalo de nuevo más tarde.",
-  "access_denied": "🚫 Esta acción solo está disponible para el equipo de soporte."
+  "access_denied": "🚫 Esta acción solo está disponible para el equipo de soporte.",
+  "forward_hidden": "🙈 El autor ocultó su identidad al reenviar; no se puede obtener el ID.\nEnvía un @usuario o un ID numérico.",
+  "no_data": "sin datos"
 }

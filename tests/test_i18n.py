@@ -63,13 +63,25 @@ def test_team_entry_template_shape(translator: Translator):
     entry = translator.get(
         "en",
         "team_entry",
-        username="dev",
+        username="@dev",
         user_id=123,
-        added_by="boss",
+        added_by="@boss",
         added_at="01.01.2026 10:00 UTC",
     )
     lines = entry.splitlines()
     assert lines[0] == "@dev"
-    assert lines[1] == "123"
-    assert "Added by @boss" in lines[2]
+    assert lines[1] == "ID: 123"
+    assert lines[2] == "Added by: @boss"
     assert lines[3] == "Added at: 01.01.2026 10:00 UTC"
+
+    # Missing values render as plain "no data", never as fake handles.
+    empty = translator.get(
+        "en",
+        "team_entry",
+        username="no data",
+        user_id=123,
+        added_by="no data",
+        added_at="01.01.2026 10:00 UTC",
+    )
+    assert "@no data" not in empty
+    assert "unknown" not in empty
