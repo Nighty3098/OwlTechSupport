@@ -46,5 +46,6 @@
   "lbl_completed_by": "Completed by",
   "lbl_completed_at": "Completed at",
   "lbl_attachments": "Attachments",
-  "error_generic": "⚠️ Something went wrong. Please try again later."
+  "error_generic": "⚠️ Something went wrong. Please try again later.",
+  "access_denied": "🚫 This action is available to the support team only."
 }

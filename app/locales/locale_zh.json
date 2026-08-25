@@ -46,5 +46,6 @@
   "lbl_completed_by": "完成人",
   "lbl_completed_at": "完成时间",
   "lbl_attachments": "附件",
-  "error_generic": "⚠️ 出现错误，请稍后再试。"
+  "error_generic": "⚠️ 出现错误，请稍后再试。",
+  "access_denied": "🚫 仅支持团队可以执行此操作。"
 }

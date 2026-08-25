@@ -46,5 +46,6 @@
   "lbl_completed_by": "完了者",
   "lbl_completed_at": "完了日時",
   "lbl_attachments": "添付ファイル",
-  "error_generic": "⚠️ 問題が発生しました。しばらくしてからもう一度お試しください。"
+  "error_generic": "⚠️ 問題が発生しました。しばらくしてからもう一度お試しください。",
+  "access_denied": "🚫 この操作はサポートチームのみ可能です。"
 }

@@ -303,6 +303,40 @@ async def test_album_merges_into_single_ticket(
         assert [a["file_id"] for a in bugs[0].attachments] == ["doc1", "doc2", "doc3"]
 
 
+async def test_non_developer_cannot_click_admin_buttons(
+    flow: Flow,
+    sessionmaker: async_sessionmaker[AsyncSession],
+):
+    """Outsider clicking ticket buttons gets an alert; nothing changes."""
+    from app.keyboards.callbacks import StatusSetCB
+
+    outsider = make_user(user_id=555, username="stranger")
+    await flow.send_message_update(make_message(text="/start", from_user=outsider))
+
+    data = StatusSetCB(kind="bug", ticket_id=1, status="in_dev").pack()
+    await flow.callback_update(
+        CallbackQuery(
+            id="cbx",
+            from_user=outsider,
+            chat_instance="ci",
+            data=data,
+            message=make_message(chat_id=SUPPORT_CHAT_ID, from_user=None),
+        )
+    )
+
+    # The denial alert is the only callback answer, and no status changed.
+    answers = [
+        call for call in flow.bot.session.calls if call[0] == "AnswerCallbackQuery"
+    ]
+    assert len(answers) == 1
+    assert "support team" in answers[0][1]["text"].lower()
+
+    # No status change happened anywhere.
+    async with sessionmaker() as db:
+        bugs = (await db.scalars(select(Bug))).all()
+        assert bugs == []
+
+
 async def test_second_start_goes_straight_to_menu(flow: Flow):
     alice = make_user()
     await flow.send_message_update(make_message(text="/start", from_user=alice))

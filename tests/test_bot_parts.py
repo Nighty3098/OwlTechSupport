@@ -89,4 +89,4 @@ def test_create_dispatcher(sessionmaker, config: Config):
 
     dp = create_dispatcher(config, sessionmaker)
     assert isinstance(dp, Dispatcher)
-    assert len(dp.sub_routers) == 4
+    assert len(dp.sub_routers) == 5

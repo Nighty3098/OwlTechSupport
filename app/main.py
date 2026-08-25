@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from .config import Config
 from .handlers import start, user
-from .handlers.admin import team, tickets
+from .handlers.admin import access_denied, team, tickets
 from .middlewares.database import DbSessionMiddleware
 from .middlewares.user_context import UserContextMiddleware
 from .services.i18n import i18n
@@ -30,4 +30,6 @@ def create_dispatcher(
     dp.include_router(user.get_router())
     dp.include_router(team.get_router())
     dp.include_router(tickets.get_router())
+    # Answers non-developers clicking admin buttons (e.g. in the support chat).
+    dp.include_router(access_denied.get_router())
     return dp
