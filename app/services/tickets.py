@@ -20,6 +20,7 @@ from .repo import support_destination
 
 DT_FORMAT = "%d.%m.%Y %H:%M UTC"
 MAX_ATTACHMENTS = 10
+PREVIEW_LIMIT = 80
 
 STATUS_KEYS: dict[TicketStatus, str] = {
     TicketStatus.NOT_STARTED: "status_not_started",
@@ -32,6 +33,15 @@ def format_dt(value: datetime | None) -> str:
     return value.strftime(DT_FORMAT) if value else "—"
 
 
+def author_label(username: str | None, user_id: int | None = None) -> str:
+    """@username when known, otherwise the numeric id."""
+    if username:
+        return f"@{username}"
+    if user_id is not None:
+        return str(user_id)
+    return "—"
+
+
 def kind_label(kind: str, t: Callable[..., str]) -> str:
     return t("lbl_bug") if kind == "bug" else t("lbl_feature")
 
@@ -40,11 +50,54 @@ def emoji_for_kind(kind: str) -> str:
     return "🐞" if kind == "bug" else "💡"
 
 
+def _preview(content: str) -> str:
+    single_line = content.replace("\n", " ").strip()
+    if len(single_line) > PREVIEW_LIMIT:
+        return html.escape(single_line[:PREVIEW_LIMIT].rstrip(), quote=False) + "…"
+    return html.escape(single_line, quote=False)
+
+
+def format_ticket_summary(kind: str, ticket: TicketMixin, t: Callable[..., str]) -> str:
+    """Compact multi-line summary used in the latest-tickets list."""
+    lines = [
+        f"{emoji_for_kind(kind)} #{ticket.id} · {t(STATUS_KEYS[ticket.status])}",
+        f"{t('lbl_reporter')}: "
+        + html.escape(author_label(ticket.reporter_username, ticket.reporter_user_id), quote=False),
+        f"{t('lbl_reported_at')}: {format_dt(ticket.reported_at)}",
+    ]
+    if ticket.attachments:
+        lines.append(f"{t('lbl_attachments')}: {len(ticket.attachments)}")
+    if ticket.content:
+        lines.append(_preview(ticket.content))
+
+    # Work stage is relevant until the ticket is closed.
+    if ticket.status is TicketStatus.COMPLETED:
+        who = html.escape(
+            author_label(ticket.completed_by_username, ticket.completed_by_user_id),
+            quote=False,
+        )
+        lines.append(
+            f"{t('lbl_completed_at')}: {format_dt(ticket.completed_at)} · "
+            f"{t('lbl_completed_by')}: {who}"
+        )
+    elif ticket.status is TicketStatus.IN_DEV:
+        who = html.escape(
+            author_label(ticket.started_by_username, ticket.started_by_user_id),
+            quote=False,
+        )
+        lines.append(
+            f"{t('lbl_taken_at')}: {format_dt(ticket.updated_at)} · "
+            f"{t('lbl_started_by')}: {who}"
+        )
+    return "\n".join(lines)
+
+
 def build_ticket_text(kind: str, ticket: TicketMixin, t: Callable[..., str]) -> str:
     """Full ticket card with all DB fields (HTML parse mode)."""
     status_label = t(STATUS_KEYS[ticket.status])
-    reporter = f"@{ticket.reporter_username}" if ticket.reporter_username else "—"
-    reporter_html = html.escape(reporter, quote=False)
+    reporter_html = html.escape(
+        author_label(ticket.reporter_username, ticket.reporter_user_id), quote=False
+    )
     lines = [
         f"{emoji_for_kind(kind)} <b>{kind_label(kind, t)} #{ticket.id}</b>",
         f"{t('lbl_reporter')}: {reporter_html} (<code>{ticket.reporter_user_id}</code>)",
@@ -54,21 +107,19 @@ def build_ticket_text(kind: str, ticket: TicketMixin, t: Callable[..., str]) -> 
     if ticket.updated_at is not None:
         lines.append(f"{t('lbl_taken_at')}: {format_dt(ticket.updated_at)}")
     if ticket.started_by_username or ticket.started_by_user_id:
-        starter = (
-            f"@{ticket.started_by_username}"
-            if ticket.started_by_username
-            else str(ticket.started_by_user_id)
+        starter = html.escape(
+            author_label(ticket.started_by_username, ticket.started_by_user_id),
+            quote=False,
         )
-        lines.append(f"{t('lbl_started_by')}: {html.escape(starter, quote=False)}")
-    if ticket.completed_by_username or ticket.completed_by_user_id:
-        completed_by = (
-            f"@{ticket.completed_by_username}"
-            if ticket.completed_by_username
-            else str(ticket.completed_by_user_id)
-        )
-        lines.append(f"{t('lbl_completed_by')}: {html.escape(completed_by, quote=False)}")
+        lines.append(f"{t('lbl_started_by')}: {starter}")
     if ticket.completed_at is not None:
         lines.append(f"{t('lbl_completed_at')}: {format_dt(ticket.completed_at)}")
+    if ticket.completed_by_username or ticket.completed_by_user_id:
+        completed_by = html.escape(
+            author_label(ticket.completed_by_username, ticket.completed_by_user_id),
+            quote=False,
+        )
+        lines.append(f"{t('lbl_completed_by')}: {completed_by}")
     if ticket.attachments:
         lines.append(f"{t('lbl_attachments')}: {len(ticket.attachments)}")
 

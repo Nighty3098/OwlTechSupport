@@ -14,7 +14,12 @@ from ...filters.developer import IsDeveloper
 from ...keyboards.admin import STATUS_KEYS, pick_ticket_kb, status_kb
 from ...keyboards.callbacks import StatusPickCB, StatusSetCB, TicketsListCB
 from ...services.repo import apply_status, get_ticket, recent_tickets
-from ...services.tickets import build_ticket_text, change_status_markup
+from ...services.tickets import (
+    build_ticket_text,
+    change_status_markup,
+    emoji_for_kind,
+    format_ticket_summary,
+)
 
 TICKETS_LIMIT = 10
 
@@ -38,11 +43,10 @@ def get_router() -> Router:
         lines = [t("tickets_header")]
         rows: list[tuple[str, str, int]] = []
         for kind, ticket in tickets:
-            emoji = "🐞" if kind == "bug" else "💡"
-            status_label = t(STATUS_KEYS[ticket.status])
-            preview = (ticket.content or "").replace("\n", " ")[:60]
-            lines.append(f"{emoji} #{ticket.id} · {status_label}\n{preview}")
-            rows.append((f"{emoji} #{ticket.id}", kind, ticket.id))
+            lines.append(format_ticket_summary(kind, ticket, t))
+            rows.append(
+                (f"{emoji_for_kind(kind)} #{ticket.id}", kind, ticket.id)
+            )
 
         await callback.message.answer(
             "\n\n".join(lines), reply_markup=pick_ticket_kb(rows, t)

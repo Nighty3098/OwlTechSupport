@@ -159,6 +159,73 @@ class TestTicketRendering:
         text = build_ticket_text("bug", anonymous, t)
         assert "Started by: 200" in text
 
+
+class TestTicketSummary:
+    def _t(self):
+        from app.services.i18n import i18n
+
+        return i18n.bound("en")
+
+    def test_not_started_entry(self):
+        from app.services.tickets import format_ticket_summary
+
+        ticket = make_ticket(
+            status=TicketStatus.NOT_STARTED,
+            updated_at=None,
+            started_by_user_id=None,
+            started_by_username=None,
+        )
+        text = format_ticket_summary("bug", ticket, self._t())
+        assert "#7" in text and "Not started" in text
+        assert "Reporter: @reporter" in text
+        assert "Created: 25.08.2026 12:00 UTC" in text
+        assert "Attachments: 1" in text
+        assert "&lt;b&gt;dark&lt;/b&gt; mode &amp; &lt;script&gt;" in text
+        assert "Started by" not in text and "Completed" not in text
+
+    def test_in_dev_entry_shows_stage(self):
+        from app.services.tickets import format_ticket_summary
+
+        ticket = make_ticket(
+            status=TicketStatus.IN_DEV,
+            updated_at=datetime(2026, 8, 26, 9, 30),
+            started_by_user_id=200,
+            started_by_username="dev",
+        )
+        text = format_ticket_summary("bug", ticket, self._t())
+        assert "In Dev" in text
+        assert "Taken at: 26.08.2026 09:30 UTC" in text
+        assert "Started by: @dev" in text
+        assert "Completed" not in text
+
+    def test_completed_entry_hides_stage(self):
+        from app.services.tickets import format_ticket_summary
+
+        ticket = make_ticket(
+            status=TicketStatus.COMPLETED,
+            updated_at=datetime(2026, 8, 26, 9, 30),
+            started_by_user_id=200,
+            started_by_username="dev",
+            completed_at=datetime(2026, 8, 27, 1, 2),
+            completed_by_user_id=300,
+            completed_by_username=None,
+        )
+        text = format_ticket_summary("bug", ticket, self._t())
+        assert "Completed" in text
+        assert "27.08.2026 01:02 UTC · Completed by: 300" in text
+        # The work stage must disappear once the ticket is closed.
+        assert "Taken at" not in text
+        assert "Started by" not in text
+
+    def test_long_content_is_trimmed(self):
+        from app.services.tickets import PREVIEW_LIMIT, format_ticket_summary
+
+        ticket = make_ticket(content="x" * (PREVIEW_LIMIT + 50))
+        text = format_ticket_summary("bug", ticket, self._t())
+        body_line = [line for line in text.splitlines() if line.startswith("x")][0]
+        assert len(body_line) == PREVIEW_LIMIT + 1  # trimmed + ellipsis
+        assert body_line.endswith("…")
+
     def test_no_content_no_quote_block(self):
         text = build_ticket_text("bug", make_ticket(content=""), self._t())
         assert "💬" not in text
