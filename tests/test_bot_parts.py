@@ -9,7 +9,7 @@ from app.config import Config
 from app.filters.developer import IsDeveloper
 from app.keyboards.admin import admin_menu_kb, status_kb, team_menu_kb
 from app.keyboards.callbacks import LangCB, StatusSetCB
-from app.keyboards.user import LANGUAGES, language_kb, submit_cancel_kb, user_menu_kb
+from app.keyboards.user import LANGUAGES, language_kb, user_menu_kb
 
 
 def test_language_keyboard_two_columns():
@@ -29,13 +29,6 @@ def test_user_menu_buttons():
     assert len(texts) == 3
     assert any("Баг" in txt for txt in texts)
     assert any("фич" in txt.lower() or "Фич" in txt for txt in texts)
-
-
-def test_submit_cancel_layout():
-    from app.services.i18n import i18n
-
-    kb = submit_cancel_kb(i18n.bound("en"))
-    assert [len(row) for row in kb.inline_keyboard] == [2]
 
 
 def test_admin_and_team_keyboards():

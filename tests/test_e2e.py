@@ -20,7 +20,7 @@ from aiogram.types import (
     User as TgUser,
 )
 from app.config import Config
-from app.db.models import Bug, Developer, TicketStatus, User
+from app.db.models import Bug, Developer, Feature, TicketStatus, User
 from app.main import create_dispatcher
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -65,6 +65,7 @@ def make_message(
     chat_id: int | str = 1000,
     from_user: TgUser | None = None,
     text: str | None = None,
+    caption: str | None = None,
     photo: list[PhotoSize] | None = None,
 ) -> Message:
     return Message(
@@ -73,6 +74,7 @@ def make_message(
         chat=Chat(id=chat_id, type="private"),
         from_user=from_user,
         text=text,
+        caption=caption,
         photo=photo,
     )
 
@@ -147,23 +149,8 @@ async def test_full_user_flow(flow: Flow, sessionmaker: async_sessionmaker[Async
     await flow.callback_update(cb2)
     assert any("Опиши проблему" in data["text"] for _, data in flow.sent_texts())
 
-    # 4. Sends description text + a photo.
+    # 4. The very first message becomes the ticket right away (no submit button).
     await flow.send_message_update(make_message(text="App crashes on start", from_user=alice))
-    photo_msg = make_message(
-        from_user=alice,
-        photo=[PhotoSize(file_id="photo123", file_unique_id="u1", width=10, height=10)],
-    )
-    await flow.send_message_update(photo_msg)
-
-    # 5. Submits the ticket.
-    cb3 = CallbackQuery(
-        id="cb3",
-        from_user=alice,
-        chat_instance="ci",
-        data="uact:submit",
-        message=make_message(from_user=alice),
-    )
-    await flow.callback_update(cb3)
 
     support_sends = [
         data for _, data in flow.sent_texts() if data.get("chat_id") == SUPPORT_CHAT_ID
@@ -179,13 +166,64 @@ async def test_full_user_flow(flow: Flow, sessionmaker: async_sessionmaker[Async
         assert len(bugs) == 1
         bug = bugs[0]
         assert bug.content == "App crashes on start"
-        assert bug.attachments[0]["file_id"] == "photo123"
+        assert bug.attachments == []
         assert bug.status is TicketStatus.NOT_STARTED
         assert bug.reporter_username == "alice"
 
         alice_row = await flow.user_row(db, 100)
         assert alice_row.reports == 1
         assert alice_row.language == "ru"
+
+
+async def test_one_shot_ticket_from_photo_with_caption(
+    flow: Flow,
+    sessionmaker: async_sessionmaker[AsyncSession],
+):
+    """A photo with a caption is enough: caption becomes the ticket text."""
+    alice = make_user()
+    await flow.send_message_update(make_message(text="/start", from_user=alice))
+    await flow.callback_update(
+        CallbackQuery(
+            id="c1",
+            from_user=alice,
+            chat_instance="ci",
+            data="lang:ru",
+            message=make_message(from_user=alice),
+        )
+    )
+    await flow.callback_update(
+        CallbackQuery(
+            id="c2",
+            from_user=alice,
+            chat_instance="ci",
+            data="uact:feature",
+            message=make_message(from_user=alice),
+        )
+    )
+
+    await flow.send_message_update(
+        make_message(
+            from_user=alice,
+            caption="Dark mode for the dashboard",
+            photo=[PhotoSize(file_id="pic42", file_unique_id="u", width=20, height=20)],
+        )
+    )
+
+    support_sends = [
+        data for _, data in flow.sent_texts() if data.get("chat_id") == SUPPORT_CHAT_ID
+    ]
+    assert len(support_sends) == 1
+    assert "Dark mode for the dashboard" in support_sends[0]["text"]
+
+    async with sessionmaker() as db:
+        features = (await db.scalars(select(Feature))).all()
+        assert len(features) == 1
+        assert features[0].content == "Dark mode for the dashboard"
+        assert [a["file_id"] for a in features[0].attachments] == ["pic42"]
+        assert [a["kind"] for a in features[0].attachments] == ["photo"]
+
+    alice_row = await flow.user_row(db, 100)
+    assert alice_row.features == 1
 
 
 async def test_second_start_goes_straight_to_menu(flow: Flow):

@@ -41,11 +41,3 @@ def user_menu_kb(t: Callable[..., str]) -> InlineKeyboardMarkup:
     builder.button(text=t("btn_contact_dev"), callback_data=UserActionCB(action="contact"))
     builder.adjust(1)
     return builder.as_markup()
-
-
-def submit_cancel_kb(t: Callable[..., str]) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.button(text=t("btn_submit"), callback_data=UserActionCB(action="submit"))
-    builder.button(text=t("btn_cancel"), callback_data=UserActionCB(action="cancel"))
-    builder.adjust(2)
-    return builder.as_markup()

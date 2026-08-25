@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
 from collections.abc import Callable
 
 from aiogram import Bot, F, Router
@@ -12,9 +11,9 @@ from aiogram.types import CallbackQuery, Message
 from ..config import Config
 from ..db.models import User
 from ..keyboards.callbacks import UserActionCB
-from ..keyboards.user import submit_cancel_kb, user_menu_kb
+from ..keyboards.user import user_menu_kb
 from ..services.repo import create_ticket
-from ..services.tickets import MAX_ATTACHMENTS, send_ticket_to_support
+from ..services.tickets import send_ticket_to_support
 from ..states import TicketForm
 
 SUPPORTED_ATTACHMENT_KINDS = {
@@ -23,6 +22,24 @@ SUPPORTED_ATTACHMENT_KINDS = {
     "video": "video",
     "audio": "audio",
 }
+
+
+def extract_content(message: Message) -> tuple[str, list[dict]]:
+    """Text/caption plus supported attachments of a single message."""
+    text = message.text or message.caption or ""
+    attachments: list[dict] = []
+    for source_kind, attachment_kind in SUPPORTED_ATTACHMENT_KINDS.items():
+        media = getattr(message, source_kind)
+        if media is None:
+            continue
+        # photo arrives as a list of sizes; keep the largest one.
+        file_id = (
+            max(media, key=lambda size: size.width).file_id
+            if isinstance(media, list)
+            else media.file_id
+        )
+        attachments.append({"file_id": file_id, "kind": attachment_kind})
+    return text, attachments
 
 
 def get_router() -> Router:
@@ -47,27 +64,14 @@ def get_router() -> Router:
 
         await state.clear()
         await state.set_state(TicketForm.collecting)
-        await state.update_data(kind=action, texts=[], attachments=[])
+        await state.update_data(kind=action)
         prompt = t("bug_prompt") if action == "bug" else t("feature_prompt")
-        await callback.message.answer(prompt, reply_markup=submit_cancel_kb(t))
+        await callback.message.answer(prompt)
         await callback.answer()
 
-    @router.callback_query(UserActionCB.filter(F.action == "cancel"))
-    async def cancel_form(
-        callback: CallbackQuery,
-        state: FSMContext,
-        t: Callable[..., str],
-    ) -> None:
-        await state.clear()
-        if isinstance(callback.message, Message):
-            with contextlib.suppress(Exception):
-                await callback.message.delete()
-            await callback.message.answer(t("cancelled"))
-        await callback.answer()
-
-    @router.callback_query(UserActionCB.filter(F.action == "submit"))
-    async def submit_ticket(
-        callback: CallbackQuery,
+    @router.message(TicketForm.collecting)
+    async def receive_ticket(
+        message: Message,
         state: FSMContext,
         db_user: User,
         session,
@@ -76,13 +80,13 @@ def get_router() -> Router:
         bot: Bot,
         config: Config,
     ) -> None:
+        """The very first message of the form becomes the ticket right away."""
         data = await state.get_data()
-        texts: list[str] = [text for text in data.get("texts", []) if text]
-        attachments: list[dict] = data.get("attachments", [])
-        kind: str | None = data.get("kind")
+        kind = data.get("kind") or "bug"
 
-        if kind is None or (not texts and not attachments):
-            await callback.answer(t("nothing_to_send"), show_alert=True)
+        text, attachments = extract_content(message)
+        if not text.strip() and not attachments:
+            await message.answer(t("ticket_need_content"))
             return
 
         ticket = await create_ticket(
@@ -90,38 +94,12 @@ def get_router() -> Router:
             kind,
             reporter_user_id=db_user.user_id,
             reporter_username=db_user.username,
-            content="\n\n".join(texts),
+            content=text.strip(),
             attachments=attachments,
         )
         await send_ticket_to_support(bot, config, i18n, kind, ticket)
 
         await state.clear()
-        if isinstance(callback.message, Message):
-            with contextlib.suppress(Exception):
-                await callback.message.delete()
-        await callback.message.answer(t("ticket_sent"), reply_markup=user_menu_kb(t))
-        await callback.answer()
-
-    @router.message(TicketForm.collecting)
-    async def collect_message(message: Message, state: FSMContext) -> None:
-        """Accumulate any text/media the user sends while filling a ticket."""
-        data = await state.get_data()
-        texts: list[str] = list(data.get("texts", []))
-        attachments: list[dict] = list(data.get("attachments", []))
-
-        if message.text:
-            texts.append(message.text)
-
-        for source_kind, attachment_kind in SUPPORTED_ATTACHMENT_KINDS.items():
-            media = getattr(message, source_kind)
-            if media is None or len(attachments) >= MAX_ATTACHMENTS:
-                continue
-            # photo arrives as a list of sizes; keep the largest one.
-            file_id = max(media, key=lambda size: size.width).file_id if isinstance(
-                media, list
-            ) else media.file_id
-            attachments.append({"file_id": file_id, "kind": attachment_kind})
-
-        await state.update_data(texts=texts, attachments=attachments)
+        await message.answer(t("ticket_sent"), reply_markup=user_menu_kb(t))
 
     return router
