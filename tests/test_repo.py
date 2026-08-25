@@ -15,6 +15,7 @@ from app.services.repo import (
     list_developers,
     recent_tickets,
     remove_developer,
+    seed_developers,
     set_language,
 )
 from sqlalchemy import select
@@ -104,6 +105,17 @@ async def test_list_developers_sorted_by_added_at(session: AsyncSession):
     )
     devs = await list_developers(session)
     assert [d.id for d in devs] == sorted([first.id, second.id])
+
+
+async def test_seed_developers_is_idempotent(
+    session: AsyncSession,
+    developer: Developer,
+):
+    seeded = await seed_developers(session, (200, 301, 302))
+    assert seeded == [301, 302]
+    assert await find_developer(session, user_id=200) is not None
+    # Second run creates nothing.
+    assert await seed_developers(session, (200, 301, 302)) == []
 
 
 async def test_create_ticket_and_counters(session: AsyncSession, user: User):

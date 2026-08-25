@@ -14,6 +14,7 @@ from aiogram.exceptions import TelegramNetworkError
 from .config import load_config
 from .db.engine import create_engine, create_sessionmaker, init_models
 from .main import create_dispatcher
+from .services.repo import seed_developers
 
 RECONNECT_DELAY_SEC = 10
 
@@ -33,6 +34,12 @@ async def run() -> None:
     engine = create_engine(config.db)
     await init_models(engine)
     sessionmaker = create_sessionmaker(engine)
+
+    async with sessionmaker() as bootstrap_session:
+        seeded = await seed_developers(bootstrap_session, config.superadmin_ids)
+        await bootstrap_session.commit()
+    if seeded:
+        logger.info("Registered superadmins as developers: %s", list(seeded))
     logger.info("Database is ready")
 
     session = AiohttpSession(proxy=config.proxy_url) if config.proxy_url else None

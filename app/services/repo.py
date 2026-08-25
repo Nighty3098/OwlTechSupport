@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from sqlalchemy import delete, func, select
@@ -109,6 +110,26 @@ async def list_developers(session: AsyncSession) -> list[Developer]:
     return list(
         (await session.scalars(select(Developer).order_by(Developer.added_at))).all()
     )
+
+
+async def seed_developers(session: AsyncSession, user_ids: Iterable[int]) -> list[int]:
+    """Register superadmins as developers. Returns ids that were newly added."""
+    seeded: list[int] = []
+    for user_id in user_ids:
+        if await find_developer(session, user_id=user_id) is None:
+            session.add(
+                Developer(
+                    user_id=user_id,
+                    username=None,
+                    added_by_user_id=user_id,
+                    added_by_username=None,
+                    added_at=utcnow(),
+                )
+            )
+            seeded.append(user_id)
+    if seeded:
+        await session.flush()
+    return seeded
 
 
 # ==== tickets ====
