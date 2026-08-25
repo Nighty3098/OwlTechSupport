@@ -17,6 +17,7 @@ from app.services.repo import (
     remove_developer,
     seed_developers,
     set_language,
+    sync_developer_username,
 )
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -116,6 +117,35 @@ async def test_seed_developers_is_idempotent(
     assert await find_developer(session, user_id=200) is not None
     # Second run creates nothing.
     assert await seed_developers(session, (200, 301, 302)) == []
+
+
+async def test_seed_developers_backfills_username(
+    session: AsyncSession,
+    user: User,
+):
+    await seed_developers(session, (user.user_id,))
+    dev = await find_developer(session, user_id=user.user_id)
+    assert dev is not None
+    assert dev.username == "reporter"
+
+
+async def test_seed_heals_existing_row_without_username(
+    session: AsyncSession,
+    user: User,
+):
+    session.add(Developer(user_id=user.user_id, added_by_user_id=user.user_id))
+    await session.flush()
+    assert await seed_developers(session, (user.user_id,)) == []
+    dev = await find_developer(session, user_id=user.user_id)
+    assert dev.username == "reporter"
+
+
+async def test_sync_developer_username(session: AsyncSession, developer: Developer):
+    await sync_developer_username(session, developer.user_id, "renamed")
+    assert (await find_developer(session, user_id=developer.user_id)).username == "renamed"
+    # Unknown users and unchanged names are no-ops.
+    await sync_developer_username(session, 999, "ghost")
+    await sync_developer_username(session, developer.user_id, "renamed")
 
 
 async def test_create_ticket_and_counters(session: AsyncSession, user: User):

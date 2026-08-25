@@ -113,23 +113,41 @@ async def list_developers(session: AsyncSession) -> list[Developer]:
 
 
 async def seed_developers(session: AsyncSession, user_ids: Iterable[int]) -> list[int]:
-    """Register superadmins as developers. Returns ids that were newly added."""
+    """Register superadmins as developers. Returns ids that were newly added.
+
+    Existing rows without a username get it backfilled from the users table.
+    """
     seeded: list[int] = []
     for user_id in user_ids:
-        if await find_developer(session, user_id=user_id) is None:
+        developer = await find_developer(session, user_id=user_id)
+        known = (
+            await session.scalars(select(User).where(User.user_id == user_id))
+        ).first()
+        if developer is None:
             session.add(
                 Developer(
                     user_id=user_id,
-                    username=None,
+                    username=known.username if known else None,
                     added_by_user_id=user_id,
                     added_by_username=None,
                     added_at=utcnow(),
                 )
             )
             seeded.append(user_id)
+        elif developer.username is None and known is not None:
+            developer.username = known.username
+            await session.flush()
     if seeded:
         await session.flush()
     return seeded
+
+
+async def sync_developer_username(session: AsyncSession, user_id: int, username: str) -> None:
+    """Mirror the current Telegram username onto the developers table."""
+    developer = await find_developer(session, user_id=user_id)
+    if developer is not None and developer.username != username:
+        developer.username = username
+        await session.flush()
 
 
 # ==== tickets ====

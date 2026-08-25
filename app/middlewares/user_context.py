@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db.models import User
 from ..services.i18n import DEFAULT_LANGUAGE, Translator
+from ..services.repo import sync_developer_username
 
 
 class UserContextMiddleware(BaseMiddleware):
@@ -51,4 +52,7 @@ async def get_or_create_user(
     elif user.username != username:
         user.username = username
         await session.flush()
+    if username:
+        # Keep the developers table on fresh Telegram usernames.
+        await sync_developer_username(session, user_id, username)
     return user
