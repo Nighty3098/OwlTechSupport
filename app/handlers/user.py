@@ -25,8 +25,9 @@ SUPPORTED_ATTACHMENT_KINDS = {
     "audio": "audio",
 }
 
-# Telegram delivers an album (media group) as several messages; wait for
-# the whole group before submitting the ticket.
+# Telegram delivers an album (media group) as several messages; the ticket
+# is submitted after this many seconds WITHOUT new items of the group, so
+# slow uploads of big files simply extend the wait.
 ALBUM_WAIT_SEC = 1.5
 
 
@@ -141,20 +142,22 @@ def get_router() -> Router:
 
         albums = dict(data.get("albums", {}))
         parts = list(albums.get(group_id, []))
-        is_first_message = not parts
         parts.append({"text": text.strip(), "attachments": attachments})
         albums[group_id] = parts
-        await state.update_data(albums=albums)
 
-        if not is_first_message:
-            return
+        # Every new item invalidates previously scheduled finalizers and
+        # extends the wait - only the latest generation submits.
+        generation = int(data.get("albums_generation", 0)) + 1
+        await state.update_data(albums=albums, albums_generation=generation)
 
         reporter_user_id = db_user.user_id
         reporter_username = db_user.username
 
-        async def finish_album() -> None:
+        async def finish_album(expected_generation: int) -> None:
             await asyncio.sleep(ALBUM_WAIT_SEC)
             fresh = await state.get_data()
+            if int(fresh.get("albums_generation", 0)) != expected_generation:
+                return  # more items arrived - newer finalizer takes over
             pending = dict(fresh.get("albums", {}))
             collected = pending.pop(group_id, [])
             if not collected:
@@ -194,6 +197,6 @@ def get_router() -> Router:
             await state.clear()
             await message.answer(t("ticket_sent"), reply_markup=user_menu_kb(t))
 
-        asyncio.create_task(finish_album())
+        asyncio.create_task(finish_album(generation))
 
     return router

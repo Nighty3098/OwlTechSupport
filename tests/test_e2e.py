@@ -241,7 +241,7 @@ async def test_album_merges_into_single_ticket(
     from aiogram.types import Document
     from app.handlers import user as user_handlers
 
-    monkeypatch.setattr(user_handlers, "ALBUM_WAIT_SEC", 0.05)
+    monkeypatch.setattr(user_handlers, "ALBUM_WAIT_SEC", 0.15)
 
     alice = make_user()
     await flow.send_message_update(make_message(text="/start", from_user=alice))
@@ -275,11 +275,20 @@ async def test_album_merges_into_single_ticket(
         document=Document(file_id="doc2", file_unique_id="u2"),
         media_group_id="grp-1",
     )
+    third = make_message(
+        from_user=alice,
+        document=Document(file_id="doc3", file_unique_id="u3"),
+        media_group_id="grp-1",
+    )
+    # Gaps below ALBUM_WAIT_SEC emulate a slow upload of big files.
     await flow.send_message_update(first)
+    await asyncio.sleep(0.08)
     await flow.send_message_update(second)
+    await asyncio.sleep(0.08)
+    await flow.send_message_update(third)
 
     # The debounce finalizer runs in the background.
-    await asyncio.sleep(0.3)
+    await asyncio.sleep(0.5)
 
     support_sends = [
         data for _, data in flow.sent_texts() if data.get("chat_id") == SUPPORT_CHAT_ID
@@ -291,7 +300,7 @@ async def test_album_merges_into_single_ticket(
         bugs = (await db.scalars(select(Bug))).all()
         assert len(bugs) == 1
         assert bugs[0].content == "Album caption"
-        assert [a["file_id"] for a in bugs[0].attachments] == ["doc1", "doc2"]
+        assert [a["file_id"] for a in bugs[0].attachments] == ["doc1", "doc2", "doc3"]
 
 
 async def test_second_start_goes_straight_to_menu(flow: Flow):
