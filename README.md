@@ -2,8 +2,6 @@
 
 Telegram support bot for the [OWL](https://owl-tech.vercel.app/) project: accepts bug reports and feature requests from users, creates tickets, and forwards them to the developer chat/topic for the team to triage and resolve.
 
-**Repository:** <https://github.com/Nighty3098/OwlTechSupport>
-
 ## Stack
 
 - **Python 3.14+** / [aiogram 3](https://docs.aiogram.dev/) (async Telegram framework)
