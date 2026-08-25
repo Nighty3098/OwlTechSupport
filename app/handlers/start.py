@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Config
 from ..db.models import User
+from ..keyboards.admin import admin_menu_kb
 from ..keyboards.callbacks import LangCB
 from ..keyboards.user import language_kb, user_menu_kb
 from ..services.repo import count_new_tickets, is_developer, set_language
@@ -76,6 +77,9 @@ async def send_main_menu(
     """Welcome text + menu depending on the role (developer or regular user)."""
     if await is_developer(session, config.superadmin_ids, user_id):
         new_tickets = await count_new_tickets(session)
-        await message.answer(t("admin_welcome", count=new_tickets))
+        await message.answer(
+            t("admin_welcome", count=new_tickets),
+            reply_markup=admin_menu_kb(t),
+        )
         return
     await message.answer(t("main_menu_user"), reply_markup=user_menu_kb(t))

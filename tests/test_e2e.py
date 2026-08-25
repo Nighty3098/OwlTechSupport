@@ -11,6 +11,7 @@ from aiogram.client.session.base import BaseSession
 from aiogram.types import (
     CallbackQuery,
     Chat,
+    InlineKeyboardMarkup,
     Message,
     PhotoSize,
     Update,
@@ -41,6 +42,8 @@ class FakeSession(BaseSession):
             if hasattr(method, field):
                 value = getattr(method, field)
                 data[field] = value
+        if hasattr(method, "reply_markup"):
+            data["reply_markup"] = method.reply_markup
         return type(method).__name__, data
 
     async def make_request(self, bot: Bot, method: Any, timeout: int | None = None):  # noqa: ANN001, ANN401
@@ -219,9 +222,18 @@ async def test_admin_welcome_and_team_add(
             message=make_message(from_user=boss),
         )
     )
-    # Admin sees the welcome with ticket counter instead of the user menu.
+    # Admin sees the welcome with ticket counter and the admin menu keyboard.
     texts = [data["text"] for _, data in flow.sent_texts()]
     assert any("Добро пожаловать" in txt and "новых тикетов" in txt for txt in texts)
+    welcome_calls = [
+        call
+        for call in flow.sent_texts()
+        if "Добро пожаловать" in (call[1].get("text") or "")
+    ]
+    assert welcome_calls
+    markup = welcome_calls[-1][1]["reply_markup"]
+    assert isinstance(markup, InlineKeyboardMarkup)
+    assert sum(len(row) for row in markup.inline_keyboard) == 2
 
     # Team menu -> add member by numeric id.
     await flow.callback_update(
