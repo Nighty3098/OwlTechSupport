@@ -1,82 +1,109 @@
 # OwlTechSupport
 
-Telegram-бот техподдержки проекта [owl](https://owl-tech.vercel.app/): приём баг репортов и предложений фич, выдача тикетов команде разработчиков в чат/топик.
+Telegram support bot for the [OWL](https://owl-tech.vercel.app/) project: accepts bug reports and feature requests from users, creates tickets, and forwards them to the developer chat/topic for the team to triage and resolve.
 
-## Стек
+**Repository:** <https://github.com/Nighty3098/OwlTechSupport>
 
-- Python 3.14+, [aiogram 3](https://docs.aiogram.dev/)
-- SQLAlchemy 2 (asyncio) + PostgreSQL (asyncpg)
-- Docker + docker compose
-- pytest
+## Stack
 
-## Возможности
+- **Python 3.14+** / [aiogram 3](https://docs.aiogram.dev/) (async Telegram framework)
+- **SQLAlchemy 2** (async) + **PostgreSQL 17** (asyncpg)
+- **Docker** + Docker Compose
+- **pytest** for testing
 
-- `/start` — выбор языка (🇷🇺 🇬🇧 🇯🇵 🇨🇳 🇪🇸 🇩🇪), все тексты — в `app/locales/locale_*.json`.
-- **Юзер:** баг репорт / предложение фичи — можно отправлять несколько сообщений с текстом, фото и файлами; заявка сохраняется в БД и уходит в чат поддержки.
-- **Разработчики/админы:** список тикетов со сменой статуса (`Not started → In Dev → Completed`), управление командой (список / добавить / удалить участника по @username, user_id или пересланному сообщению).
-- Поддержка обычного чата **и топика** (форума).
-- Опциональный прокси `socks5://` / `http(s)://` для контейнера.
+## Features
 
-## Быстрый старт
+| Area | Details |
+|------|---------|
+| **I18n** | 6 languages (RU / EN / JA / ZH / ES / DE) selectable via `/start`. All UI strings live in `app/locales/locale_*.json`. |
+| **User flow** | Submit a bug report or feature request: text, photos, videos, documents, and voice messages are accepted. Multiple messages are merged into a single ticket. Albums (media groups) are debounced and merged automatically. |
+| **Developer flow** | View the ticket queue with rich previews (author, date, attachments, text snippet). Change status: *Not started → In Dev → Completed*. The developer who picks up a ticket is recorded. |
+| **Team management** | List, add, and remove team members by `@username`, numeric `user ID`, or a forwarded message (supports hidden sender names). |
+| **Forum support** | Works in plain group chats and in forum topics. |
+| **Access control** | Superadmins manage the team. Developers get the admin panel; non-developers in the channel receive a polite denial. |
+| **Proxy** | Optional `socks5://` / `http(s)://` proxy via `PROXY_URL` (host-local loopback addresses are rewritten automatically for Docker). |
+
+## Quick start
 
 ```bash
-cp .env.example .env   # заполните BOT_TOKEN, SUPERADMIN_IDS, SUPPORT_CHAT_ID, пароль БД
+git clone https://github.com/Nighty3098/OwlTechSupport.git
+cd OwlTechSupport
+cp .env.example .env   # fill in BOT_TOKEN, SUPERADMIN_IDS, SUPPORT_CHAT_ID, DB credentials
 docker compose up -d --build
 ```
 
-Локально без Docker:
+The bot connects to Telegram via polling and prints a confirmation on startup.
+
+### Without Docker
 
 ```bash
-python3.14 -m venv .venv && . .venv/bin/activate
+python3.14 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 export POSTGRES_HOST=localhost
 python -m app
 ```
 
-## Переменные окружения (.env)
+## Environment variables
 
-| Переменная | Описание |
-| --- | --- |
-| `BOT_TOKEN` | токен из @BotFather |
-| `SUPERADMIN_IDS` | id админов через запятую (управляют командой) |
-| `SUPPORT_CHAT_ID` | чат тикетов: `3800802201`, `-100...`, `@group` или ссылка `https://t.me/c/<id>/<topic>` |
-| `SUPPORT_TOPIC_ID` | явный topic id (перекрывает topic из ссылки) |
-| `PROXY_URL` | опционально: `socks5://user:pass@host:1080`, `http://...`, `https://...`. Прокси на хосте: `socks5://host.docker.internal:10808` |
-| `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | параметры БД |
-| `SUPPORT_CONTACT_URL` | контакт в меню «связаться с разработчиком» |
+| Variable | Description |
+|----------|-------------|
+| `BOT_TOKEN` | Bot token from [@BotFather](https://t.me/BotFather) |
+| `SUPERADMIN_IDS` | Comma-separated Telegram user IDs of superadmins (can manage the team) |
+| `SUPPORT_CHAT_ID` | Target ticket chat: numeric ID (`3800802201`), `-100…` format, `@group` username, or a `https://t.me/c/<id>/<topic>` link |
+| `SUPPORT_TOPIC_ID` | Explicit topic ID (overrides the topic parsed from the link above) |
+| `PROXY_URL` | *(optional)* `socks5://user:pass@host:1080`, `http://…`, or `https://…`. For a host-local proxy in Docker: `socks5://host.docker.internal:10808` |
+| `POSTGRES_HOST` | PostgreSQL host (default `db` in Docker) |
+| `POSTGRES_PORT` | PostgreSQL port (default `5432`) |
+| `POSTGRES_USER` | Database user |
+| `POSTGRES_PASSWORD` | Database password |
+| `POSTGRES_DB` | Database name |
+| `SUPPORT_CONTACT_URL` | Link shown in the *Contact developer* menu button |
 
-Docker Compose берёт переменные только из `.env`.
+Docker Compose reads all variables from `.env`.
 
-## Структура проекта
+## Project structure
 
 ```
 app/
-├── config.py          # env-конфиг, валидация proxy и chat/topic
-├── main.py            # сборка диспетчера (middlewares + routers)
-├── __main__.py        # запуск polling
-├── db/                # engine, models (users, developers, bugs, features)
-├── filters/           # IsDeveloper
+├── config.py            # env config, proxy / chat / topic validation
+├── main.py              # dispatcher assembly (middlewares + routers)
+├── __main__.py          # entrypoint — seed developers, start polling
+├── db/
+│   ├── engine.py        # async engine + sessionmaker, DDL init + migrations
+│   ├── models.py        # User, Developer, Ticket, Bug, Feature mixins
+│   └── enums.py         # UserAction, BugStatus, FeatureStatus, UserRole
+├── filters/             # IsDeveloper
 ├── handlers/
-│   ├── start.py       # /start, выбор языка, главные меню
-│   ├── user.py        # баг репорт / фича / контакт
-│   └── admin/         # команда и тикеты
-├── keyboards/         # inline-клавиатуры и CallbackData
-├── middlewares/       # DbSession, UserContext (+i18n)
-├── services/          # repo, i18n, tickets, members
-└── locales/           # locale_ru.json ... locale_de.json
-tests/                 # pytest (unit + e2e через мок Telegram session)
+│   ├── start.py         # /start, language selection, main menus
+│   ├── user.py          # bug / feature submission (one-shot, album merge)
+│   └── admin/
+│       ├── access_denied.py  # alert for non-developers on admin buttons
+│       ├── team.py      # team list / add / remove
+│       └── tickets.py   # ticket list + status transitions
+├── keyboards/           # inline keyboards and CallbackData classes
+├── locales/             # locale_ru.json … locale_de.json (6 languages)
+├── middlewares/
+│   ├── user_context.py  # DB session + username sync
+│   └── i18n.py          # language-aware translation injection
+└── services/
+    ├── repo.py          # CRUD, seed_developers, apply_status
+    ├── i18n.py           # Translator, StubTranslator
+    ├── tickets.py        # format_ticket_summary, build_ticket_text
+    └── members.py        # extract_member_ref, resolve_member, add/remove_developer
+tests/                    # unit + e2e via FakeSession (no real Telegram)
 ```
 
-## Разработка
+## Development
 
 ```bash
 pip install -r requirements-dev.txt
-ruff check app tests   # линт
-pytest                 # тесты
+
+ruff check app tests    # lint
+pytest -q               # run all tests
 ```
 
-CI: GitHub Actions прогоняет ruff + pytest на push/PR и автоматически перегенерирует `THIRD_PARTY_NOTICES.md` (pip-licenses).
+CI (GitHub Actions) runs `ruff check` + `pytest` on every push and PR, and regenerates `THIRD_PARTY_NOTICES.md` via `pip-licenses`.
 
-## Коммиты
+## Commit convention
 
-Conventional Commits: `feat(scope): ...`, `fix: ...`, `chore: ...`. Шаблон PR — `.github/pull_request_template.md`.
+[Conventional Commits](https://www.conventionalcommits.org/): `feat(scope): …`, `fix: …`, `chore: …`. PR template: `.github/pull_request_template.md`.
