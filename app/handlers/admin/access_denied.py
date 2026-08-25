@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable
 
 from aiogram import Router
 from aiogram.types import CallbackQuery
 
 from ...keyboards.callbacks import StatusPickCB, StatusSetCB, TeamCB, TicketsListCB
+
+logger = logging.getLogger(__name__)
 
 
 def get_router() -> Router:
@@ -22,6 +25,13 @@ def get_router() -> Router:
         callback: CallbackQuery,
         t: Callable[..., str],
     ) -> None:
+        user = callback.from_user
+        logger.warning(
+            "access_denied user=%d (@%s) data=%s",
+            user.id if user else 0,
+            (user.username if user else None) or "?",
+            callback.data or "?",
+        )
         await callback.answer(t("access_denied"), show_alert=True)
 
     return router

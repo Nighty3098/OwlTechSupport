@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Callable
 
 from aiogram import Bot, F, Router
@@ -17,6 +18,8 @@ from ..keyboards.user import user_menu_kb
 from ..services.repo import create_ticket
 from ..services.tickets import MAX_ATTACHMENTS, send_ticket_to_support
 from ..states import TicketForm
+
+logger = logging.getLogger(__name__)
 
 SUPPORTED_ATTACHMENT_KINDS = {
     "photo": "photo",
@@ -69,6 +72,14 @@ async def submit_ticket(
         content=content,
         attachments=attachments,
     )
+    logger.info(
+        "ticket_created id=%d user=%d (@%s) type=%s attachments=%d",
+        ticket.id,
+        reporter_user_id,
+        reporter_username or "?",
+        kind,
+        len(attachments),
+    )
     await send_ticket_to_support(bot, config, translator, kind, ticket)
 
 
@@ -85,6 +96,13 @@ def get_router() -> Router:
         t: Callable[..., str],
         config: Config,
     ) -> None:
+        user = callback.from_user
+        logger.info(
+            "user_action callback=%s user=%d (@%s)",
+            callback_data.action,
+            user.id if user else 0,
+            (user.username if user else None) or "?",
+        )
         action = callback_data.action
         if action == "contact":
             await state.clear()
@@ -123,8 +141,16 @@ def get_router() -> Router:
         group_id = message.media_group_id
         if group_id is None:
             if not text.strip() and not attachments:
+                logger.info("ticket_empty user=%d (@%s)", db_user.user_id, db_user.username or "?")
                 await message.answer(t("ticket_need_content"))
                 return
+            logger.info(
+                "ticket_received user=%d (@%s) type=%s attachments=%d",
+                db_user.user_id,
+                db_user.username or "?",
+                kind,
+                len(attachments),
+            )
             await submit_ticket(
                 session,
                 kind=kind,
@@ -180,6 +206,14 @@ def get_router() -> Router:
             if not content and not merged:
                 return
 
+            logger.info(
+                "album_ticket_received user=%d (@%s) type=%s parts=%d attachments=%d",
+                reporter_user_id,
+                reporter_username or "?",
+                kind,
+                len(collected),
+                len(merged),
+            )
             # The middleware session is closed by now - open a fresh one.
             async with sessionmaker() as album_session:
                 await submit_ticket(

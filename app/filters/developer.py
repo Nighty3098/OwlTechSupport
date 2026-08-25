@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from aiogram.filters import BaseFilter
@@ -10,6 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import Config
 from ..services.repo import is_developer
+
+logger = logging.getLogger(__name__)
 
 
 class IsDeveloper(BaseFilter):
@@ -23,4 +26,9 @@ class IsDeveloper(BaseFilter):
         user = event.from_user
         if user is None:
             return False
-        return await is_developer(session, config.superadmin_ids, user.id)
+        result = await is_developer(session, config.superadmin_ids, user.id)
+        logger.debug(
+            "is_developer check user=%d (@%s) -> %s",
+            user.id, user.username or "?", result,
+        )
+        return result

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable
 from datetime import datetime
 
@@ -11,6 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import ChatTarget
 from ..db.base import utcnow
 from ..db.models import Bug, Developer, Feature, TicketMixin, TicketStatus, User
+
+logger = logging.getLogger(__name__)
 
 TICKET_KINDS: dict[str, type[Bug] | type[Feature]] = {"bug": Bug, "feature": Feature}
 TICKET_KIND_BY_MODEL: dict[type, str] = {Bug: "bug", Feature: "feature"}
@@ -214,6 +217,13 @@ async def create_ticket(
     )
     session.add(ticket)
     await session.flush()
+    logger.info(
+        "db_ticket_created id=%d user=%d (@%s) type=%s",
+        ticket.id,
+        reporter_user_id,
+        reporter_username or "?",
+        kind,
+    )
     await increment_user_counter(session, reporter_user_id, kind)
     return ticket
 
@@ -257,6 +267,12 @@ async def apply_status(
         elif developer is not None and isinstance(ticket, Feature):
             developer.features_closed += 1
     await session.flush()
+    logger.info(
+        "db_status_applied ticket_id=%d old=%s new=%s",
+        ticket.id,
+        previous.value,
+        status.value,
+    )
 
 
 def support_destination(config_target: ChatTarget) -> dict:

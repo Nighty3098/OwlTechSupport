@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -13,6 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..db.models import User
 from ..services.i18n import DEFAULT_LANGUAGE, Translator
 from ..services.repo import sync_developer_username
+
+logger = logging.getLogger(__name__)
 
 
 class UserContextMiddleware(BaseMiddleware):
@@ -49,9 +52,15 @@ async def get_or_create_user(
         user = User(user_id=user_id, username=username)
         session.add(user)
         await session.flush()
+        logger.info("new user created user=%d (@%s)", user_id, username or "?")
     elif user.username != username:
+        old = user.username
         user.username = username
         await session.flush()
+        logger.info(
+            "username changed user=%d old=@%s new=@%s",
+            user_id, old or "?", username or "?",
+        )
     if username:
         # Keep the developers table on fresh Telegram usernames.
         await sync_developer_username(session, user_id, username)

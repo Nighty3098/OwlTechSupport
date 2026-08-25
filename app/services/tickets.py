@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import contextlib
 import html
+import logging
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
@@ -17,6 +17,8 @@ from ..db.models import Bug, Feature, TicketMixin, TicketStatus
 from ..keyboards.callbacks import StatusPickCB
 from .i18n import DEFAULT_LANGUAGE, Translator
 from .repo import support_destination
+
+logger = logging.getLogger(__name__)
 
 DT_FORMAT = "%d.%m.%Y %H:%M UTC"
 MAX_ATTACHMENTS = 10
@@ -155,8 +157,10 @@ async def send_attachment(
     sender, param = method_by_kind.get(
         attachment.get("kind", "document"), method_by_kind["document"]
     )
-    with contextlib.suppress(Exception):  # broken file ids must not break delivery
+    try:
         await sender(**destination, **{param: file_id})
+    except Exception:
+        logger.exception("failed to send attachment kind=%s", attachment.get("kind", "?"))
 
 
 async def send_ticket_to_support(
@@ -172,10 +176,22 @@ async def send_ticket_to_support(
     t = translator.bound(DEFAULT_LANGUAGE)
     destination = support_destination(config.support_chat)
 
-    await bot.send_message(
-        **destination,
-        text=build_ticket_text(kind, ticket, t),
-        reply_markup=change_status_markup(kind, ticket.id, t),
-    )
+    try:
+        await bot.send_message(
+            **destination,
+            text=build_ticket_text(kind, ticket, t),
+            reply_markup=change_status_markup(kind, ticket.id, t),
+        )
+        logger.info(
+            "ticket_sent_to_support ticket=%s:%d attachments=%d",
+            kind,
+            ticket.id,
+            len(ticket.attachments or []),
+        )
+    except Exception:
+        logger.exception(
+            "failed to send ticket to support ticket=%s:%d", kind, ticket.id
+        )
+        return
     for attachment in ticket.attachments[:MAX_ATTACHMENTS]:
         await send_attachment(bot, destination, attachment)

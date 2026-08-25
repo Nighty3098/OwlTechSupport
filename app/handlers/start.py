@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import contextlib
+import logging
 from collections.abc import Callable
 
 from aiogram import Router
@@ -18,6 +19,8 @@ from ..keyboards.callbacks import LangCB
 from ..keyboards.user import language_kb, user_menu_kb
 from ..services.repo import count_new_tickets, is_developer, set_language
 
+logger = logging.getLogger(__name__)
+
 
 def get_router() -> Router:
     router = Router(name="start")
@@ -31,6 +34,7 @@ def get_router() -> Router:
         session: AsyncSession,
         config: Config,
     ) -> None:
+        logger.info("/start user=%d (@%s)", db_user.user_id, db_user.username or "?")
         # Leaving any active form (e.g. a half-filled ticket).
         await state.clear()
         if db_user.language is None:
@@ -40,6 +44,7 @@ def get_router() -> Router:
 
     @router.message(Command("cancel"))
     async def cmd_cancel(message: Message, state: FSMContext, t: Callable[..., str]) -> None:
+        logger.info("/cancel user=%d", message.from_user.id if message.from_user else 0)
         await state.clear()
         await message.answer(t("cancelled"))
 
@@ -52,6 +57,12 @@ def get_router() -> Router:
         config: Config,
         i18n,
     ) -> None:
+        logger.info(
+            "language_chosen user=%d (@%s) lang=%s",
+            db_user.user_id,
+            db_user.username or "?",
+            callback_data.code,
+        )
         await set_language(session, db_user.user_id, callback_data.code)
         db_user.language = callback_data.code
         if isinstance(callback.message, Message):
