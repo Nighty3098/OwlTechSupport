@@ -67,6 +67,8 @@ def make_message(
     text: str | None = None,
     caption: str | None = None,
     photo: list[PhotoSize] | None = None,
+    document=None,
+    media_group_id: str | None = None,
 ) -> Message:
     return Message(
         message_id=message_id,
@@ -76,6 +78,8 @@ def make_message(
         text=text,
         caption=caption,
         photo=photo,
+        document=document,
+        media_group_id=media_group_id,
     )
 
 
@@ -224,6 +228,70 @@ async def test_one_shot_ticket_from_photo_with_caption(
 
     alice_row = await flow.user_row(db, 100)
     assert alice_row.features == 1
+
+
+async def test_album_merges_into_single_ticket(
+    flow: Flow,
+    sessionmaker: async_sessionmaker[AsyncSession],
+    monkeypatch,
+):
+    """Several album items (same media_group_id) become ONE ticket."""
+    import asyncio
+
+    from aiogram.types import Document
+    from app.handlers import user as user_handlers
+
+    monkeypatch.setattr(user_handlers, "ALBUM_WAIT_SEC", 0.05)
+
+    alice = make_user()
+    await flow.send_message_update(make_message(text="/start", from_user=alice))
+    await flow.callback_update(
+        CallbackQuery(
+            id="c1",
+            from_user=alice,
+            chat_instance="ci",
+            data="lang:en",
+            message=make_message(from_user=alice),
+        )
+    )
+    await flow.callback_update(
+        CallbackQuery(
+            id="c2",
+            from_user=alice,
+            chat_instance="ci",
+            data="uact:bug",
+            message=make_message(from_user=alice),
+        )
+    )
+
+    first = make_message(
+        from_user=alice,
+        caption="Album caption",
+        document=Document(file_id="doc1", file_unique_id="u1"),
+        media_group_id="grp-1",
+    )
+    second = make_message(
+        from_user=alice,
+        document=Document(file_id="doc2", file_unique_id="u2"),
+        media_group_id="grp-1",
+    )
+    await flow.send_message_update(first)
+    await flow.send_message_update(second)
+
+    # The debounce finalizer runs in the background.
+    await asyncio.sleep(0.3)
+
+    support_sends = [
+        data for _, data in flow.sent_texts() if data.get("chat_id") == SUPPORT_CHAT_ID
+    ]
+    assert len(support_sends) == 1
+    assert "Album caption" in support_sends[0]["text"]
+
+    async with sessionmaker() as db:
+        bugs = (await db.scalars(select(Bug))).all()
+        assert len(bugs) == 1
+        assert bugs[0].content == "Album caption"
+        assert [a["file_id"] for a in bugs[0].attachments] == ["doc1", "doc2"]
 
 
 async def test_second_start_goes_straight_to_menu(flow: Flow):

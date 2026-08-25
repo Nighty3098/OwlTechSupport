@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Callable
 
 from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from ..config import Config
 from ..db.models import User
 from ..keyboards.callbacks import UserActionCB
 from ..keyboards.user import user_menu_kb
 from ..services.repo import create_ticket
-from ..services.tickets import send_ticket_to_support
+from ..services.tickets import MAX_ATTACHMENTS, send_ticket_to_support
 from ..states import TicketForm
 
 SUPPORTED_ATTACHMENT_KINDS = {
@@ -22,6 +24,10 @@ SUPPORTED_ATTACHMENT_KINDS = {
     "video": "video",
     "audio": "audio",
 }
+
+# Telegram delivers an album (media group) as several messages; wait for
+# the whole group before submitting the ticket.
+ALBUM_WAIT_SEC = 1.5
 
 
 def extract_content(message: Message) -> tuple[str, list[dict]]:
@@ -40,6 +46,29 @@ def extract_content(message: Message) -> tuple[str, list[dict]]:
         )
         attachments.append({"file_id": file_id, "kind": attachment_kind})
     return text, attachments
+
+
+async def submit_ticket(
+    session: AsyncSession,
+    *,
+    kind: str,
+    reporter_user_id: int,
+    reporter_username: str | None,
+    content: str,
+    attachments: list[dict],
+    bot: Bot,
+    config: Config,
+    translator,
+) -> None:
+    ticket = await create_ticket(
+        session,
+        kind,
+        reporter_user_id=reporter_user_id,
+        reporter_username=reporter_username,
+        content=content,
+        attachments=attachments,
+    )
+    await send_ticket_to_support(bot, config, translator, kind, ticket)
 
 
 def get_router() -> Router:
@@ -74,32 +103,97 @@ def get_router() -> Router:
         message: Message,
         state: FSMContext,
         db_user: User,
-        session,
+        session: AsyncSession,
+        sessionmaker: async_sessionmaker[AsyncSession],
         t: Callable[..., str],
         i18n,
         bot: Bot,
         config: Config,
     ) -> None:
-        """The very first message of the form becomes the ticket right away."""
+        """The first message of the form becomes the ticket right away.
+
+        Album items share a ``media_group_id`` and are merged into one
+        ticket after a short debounce.
+        """
         data = await state.get_data()
         kind = data.get("kind") or "bug"
-
         text, attachments = extract_content(message)
-        if not text.strip() and not attachments:
-            await message.answer(t("ticket_need_content"))
+
+        group_id = message.media_group_id
+        if group_id is None:
+            if not text.strip() and not attachments:
+                await message.answer(t("ticket_need_content"))
+                return
+            await submit_ticket(
+                session,
+                kind=kind,
+                reporter_user_id=db_user.user_id,
+                reporter_username=db_user.username,
+                content=text.strip(),
+                attachments=attachments,
+                bot=bot,
+                config=config,
+                translator=i18n,
+            )
+            await state.clear()
+            await message.answer(t("ticket_sent"), reply_markup=user_menu_kb(t))
             return
 
-        ticket = await create_ticket(
-            session,
-            kind,
-            reporter_user_id=db_user.user_id,
-            reporter_username=db_user.username,
-            content=text.strip(),
-            attachments=attachments,
-        )
-        await send_ticket_to_support(bot, config, i18n, kind, ticket)
+        albums = dict(data.get("albums", {}))
+        parts = list(albums.get(group_id, []))
+        is_first_message = not parts
+        parts.append({"text": text.strip(), "attachments": attachments})
+        albums[group_id] = parts
+        await state.update_data(albums=albums)
 
-        await state.clear()
-        await message.answer(t("ticket_sent"), reply_markup=user_menu_kb(t))
+        if not is_first_message:
+            return
+
+        reporter_user_id = db_user.user_id
+        reporter_username = db_user.username
+
+        async def finish_album() -> None:
+            await asyncio.sleep(ALBUM_WAIT_SEC)
+            fresh = await state.get_data()
+            pending = dict(fresh.get("albums", {}))
+            collected = pending.pop(group_id, [])
+            if not collected:
+                return  # form was cancelled meanwhile
+            await state.update_data(albums=pending)
+
+            seen: set[str] = set()
+            texts: list[str] = []
+            for part in collected:
+                value = part["text"]
+                if value and value not in seen:
+                    seen.add(value)
+                    texts.append(value)
+            merged = [
+                attachment
+                for part in collected
+                for attachment in part["attachments"]
+            ][:MAX_ATTACHMENTS]
+            content = "\n".join(texts)
+            if not content and not merged:
+                return
+
+            # The middleware session is closed by now - open a fresh one.
+            async with sessionmaker() as album_session:
+                await submit_ticket(
+                    album_session,
+                    kind=kind,
+                    reporter_user_id=reporter_user_id,
+                    reporter_username=reporter_username,
+                    content=content,
+                    attachments=merged,
+                    bot=bot,
+                    config=config,
+                    translator=i18n,
+                )
+                await album_session.commit()
+            await state.clear()
+            await message.answer(t("ticket_sent"), reply_markup=user_menu_kb(t))
+
+        asyncio.create_task(finish_album())
 
     return router

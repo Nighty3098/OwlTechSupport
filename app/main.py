@@ -20,6 +20,7 @@ def create_dispatcher(
 ) -> Dispatcher:
     dp = Dispatcher(storage=MemoryStorage())
     dp["config"] = config
+    dp["sessionmaker"] = sessionmaker
 
     dp.update.outer_middleware(DbSessionMiddleware(sessionmaker))
     dp.update.outer_middleware(UserContextMiddleware(i18n))
