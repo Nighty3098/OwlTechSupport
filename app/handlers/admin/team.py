@@ -64,7 +64,8 @@ def get_router() -> Router:
     ) -> None:
         data = await state.get_data()
         action: str = data.get("action", "add")
-        await state.clear()
+        # The form stays open until a successful add/remove, so the admin
+        # can retry immediately; /cancel exits explicitly.
 
         ref = extract_member_ref(message)
         if ref is None or (ref.user_id is None and ref.username is None):
@@ -92,13 +93,15 @@ def get_router() -> Router:
             )
             label = developer.username or str(developer.user_id)
             await message.answer(t("member_added", username=label))
-            return
-
-        victim = await remove_developer(session, user_id=ref.user_id, username=ref.username)
-        if victim is None:
-            await message.answer(t("member_not_found"))
-            return
-        await message.answer(t("member_removed", username=victim.username or str(victim.user_id)))
+        else:
+            victim = await remove_developer(session, user_id=ref.user_id, username=ref.username)
+            if victim is None:
+                await message.answer(t("member_not_found"))
+                return
+            await message.answer(
+                t("member_removed", username=victim.username or str(victim.user_id))
+            )
+        await state.clear()
 
     @router.callback_query(TeamCB.filter(F.action == "list"))
     async def team_list(
